@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Day 1 Community Survey Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -17,7 +18,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             min-height: 100vh;
-            overflow-x: hidden;
+            overflow-x: auto;
         }
 
         .dashboard {
@@ -33,6 +34,7 @@
             margin-bottom: 30px;
             opacity: 0;
             animation: fadeInDown 0.8s ease-out forwards;
+            position: relative;
         }
 
         .header h1 {
@@ -57,6 +59,35 @@
             font-size: 1.1rem;
             opacity: 0.9;
             margin-bottom: 15px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
         .grid {
@@ -200,6 +231,149 @@
             animation: pulse 2s infinite;
         }
 
+        /* Print styles */
+        @media print {
+            body {
+                background: white !important;
+                padding: 10px !important;
+            }
+            
+            .dashboard {
+                max-width: 100% !important;
+                opacity: 1 !important;
+            }
+            
+            .card {
+                background: white !important;
+                box-shadow: 0 0 5px rgba(0,0,0,0.1) !important;
+                break-inside: avoid;
+                transform: none !important;
+                opacity: 1 !important;
+            }
+            
+            .controls {
+                display: none !important;
+            }
+            
+            .header {
+                color: #333 !important;
+                margin-bottom: 20px !important;
+            }
+            
+            .date-badge {
+                background: #f0f0f0 !important;
+                color: #333 !important;
+                border: 1px solid #ddd !important;
+            }
+            
+            .card:hover {
+                transform: none !important;
+                box-shadow: 0 0 5px rgba(0,0,0,0.1) !important;
+            }
+            
+            .chart-container {
+                height: 200px !important;
+            }
+        }
+
+        /* Print preview modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .print-preview {
+            background: white;
+            width: 90%;
+            height: 90%;
+            border-radius: 10px;
+            overflow: auto;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            z-index: 1001;
+        }
+        
+        .print-controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 1001;
+        }
+        
+        .print-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Print preview content styles */
+        .print-preview-content {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background: white;
+            padding: 20px;
+        }
+
+        .print-preview-content .dashboard {
+            opacity: 1;
+            animation: none;
+        }
+
+        .print-preview-content .header {
+            opacity: 1;
+            animation: none;
+            color: #333;
+        }
+
+        .print-preview-content .card {
+            opacity: 1;
+            transform: none;
+            animation: none;
+            background: white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        .print-preview-content .card:hover {
+            transform: none;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        .print-preview-content .controls {
+            display: none;
+        }
+
         @keyframes fadeInDashboard {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -253,6 +427,10 @@
             .header h1 {
                 font-size: 1.8rem;
             }
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
         }
     </style>
 </head>
@@ -263,6 +441,30 @@
             <p>Comprehensive overview of household and infrastructure data</p>
             <div class="date-badge">
                 <span class="pulse-dot"></span>Day 1 Data Collection
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn" id="printBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/>
+                        <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2H5zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4V3zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2H5zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1z"/>
+                    </svg>
+                    Print
+                </button>
+                <button class="control-btn" id="downloadBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    Download as Google Sheet
+                </button>
+                <button class="control-btn" id="previewBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                        <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                    </svg>
+                    Print Preview
+                </button>
             </div>
         </div>
 
@@ -328,6 +530,20 @@
                         <div class="stat-label">Want Workshops</div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Preview Modal -->
+    <div class="modal-overlay" id="previewModal">
+        <div class="print-preview">
+            <div class="print-controls">
+                <button class="print-btn" id="printFromPreview">Print</button>
+                <button class="print-btn" id="closePreview">Close</button>
+            </div>
+            <button class="close-btn" id="closeModalBtn">×</button>
+            <div class="print-preview-content" id="printContent">
+                <!-- Print content will be inserted here -->
             </div>
         </div>
     </div>
@@ -610,6 +826,119 @@
                         }
                     }
                 }
+            }
+        });
+
+        // Export functionality
+        document.getElementById('printBtn').addEventListener('click', function() {
+            window.print();
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            // Create data for Google Sheets format
+            const data = [
+                ['Survey Data', '', '', ''],
+                ['', '', '', ''],
+                ['Household Size Distribution', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['6 or more', '33.5%', '', ''],
+                ['1 person', '25%', '', ''],
+                ['4-5 people', '25%', '', ''],
+                ['2-3 people', '16.5%', '', ''],
+                ['', '', '', ''],
+                ['Dwelling Types', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['Brick house', '67%', '', ''],
+                ['Informal settlement/shack', '25%', '', ''],
+                ['Missing', '8%', '', ''],
+                ['', '', '', ''],
+                ['Infrastructure Quality', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['Poor', '25%', '', ''],
+                ['Very poor', '17%', '', ''],
+                ['Fair', '17%', '', ''],
+                ['Good', '17%', '', ''],
+                ['Excellent', '8%', '', ''],
+                ['Missing', '17%', '', ''],
+                ['', '', '', ''],
+                ['Water Shortage Frequency', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['Occasionally', '67%', '', ''],
+                ['Frequently', '25%', '', ''],
+                ['Missing', '8%', '', ''],
+                ['', '', '', ''],
+                ['Water Meter Access', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['Yes', '67%', '', ''],
+                ['No', '25%', '', ''],
+                ['Missing', '8%', '', ''],
+                ['', '', '', ''],
+                ['Workshop Interest', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['Yes', '78%', '', ''],
+                ['No', '8%', '', ''],
+                ['Missing', '17%', '', ''],
+                ['', '', '', ''],
+                ['Water-Saving Practices Adoption', '', '', ''],
+                ['Category', 'Percentage', '', ''],
+                ['Yes', '78%', '', ''],
+                ['Maybe', '8%', '', ''],
+                ['Missing', '17%', '', ''],
+                ['', '', '', ''],
+                ['Summary Statistics', '', '', ''],
+                ['Metric', 'Value', '', ''],
+                ['Ready to Adopt', '78%', '', ''],
+                ['Have Meters', '67%', '', ''],
+                ['Want Workshops', '78%', '', '']
+            ];
+
+            // Create worksheet
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Survey Data");
+            
+            // Generate XLSX file and trigger download
+            XLSX.writeFile(wb, "Community_Survey_Data.xlsx");
+        });
+
+        // Print preview functionality
+        document.getElementById('previewBtn').addEventListener('click', function() {
+            const modal = document.getElementById('previewModal');
+            const printContent = document.getElementById('printContent');
+            
+            // Clone the dashboard content for print preview
+            const dashboardClone = document.querySelector('.dashboard').cloneNode(true);
+            
+            // Remove the control buttons from the preview
+            const controls = dashboardClone.querySelector('.controls');
+            if (controls) controls.remove();
+            
+            // Update the print content
+            printContent.innerHTML = '';
+            printContent.appendChild(dashboardClone);
+            
+            // Show the modal
+            modal.style.display = 'flex';
+        });
+
+        document.getElementById('closeModalBtn').addEventListener('click', function() {
+            document.getElementById('previewModal').style.display = 'none';
+        });
+
+        document.getElementById('closePreview').addEventListener('click', function() {
+            document.getElementById('previewModal').style.display = 'none';
+        });
+
+        document.getElementById('printFromPreview').addEventListener('click', function() {
+            window.print();
+        });
+
+        // Close modal when clicking outside the content
+        document.getElementById('previewModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
             }
         });
     </script>
